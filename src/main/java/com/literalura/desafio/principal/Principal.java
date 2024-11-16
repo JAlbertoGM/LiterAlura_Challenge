@@ -1,33 +1,18 @@
 package com.literalura.desafio.principal;
 
-import com.literalura.desafio.model.*;
-import com.literalura.desafio.repositories.AutorRepository;
-import com.literalura.desafio.repositories.LibroRepository;
+import com.literalura.desafio.model.Datos;
+import com.literalura.desafio.model.DatosAutor;
+import com.literalura.desafio.model.DatosLibros;
 import com.literalura.desafio.service.ConsumoAPI;
 import com.literalura.desafio.service.ConvierteDatos;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 
-@Service
 public class Principal {
 
-    //@Autowired
-    //private LibroRepository libroRepository;
-
-    //@Autowired
-    //private AutorRepository autorRepository;
-
-    private LibroRepository libroRepository = null;
-
-    @Autowired
-    public Principal(LibroRepository repository) {
-        this.libroRepository = libroRepository;
-    }
     //Creamos como constante la url para conectar con la API
     private static final String URL_BASE = "https://gutendex.com/books/";
     //Instanciamos el objeto de consumo api para la conexion que se genera
@@ -52,7 +37,7 @@ public class Principal {
                     "1) Buscar libro por nombre\n" +
                     "2) Buscar autor por nombre\n" +
                     "3) Buscar libros por idiomas\n" +
-                    "4) Buscar autores entre fechas\n" +
+                    "4) Buscar autor por fechas\n" +
                     "5) Libros buscados\n" +
                     "0) Salir\n" +
                     "***********************************************\n"+
@@ -80,7 +65,7 @@ public class Principal {
                     autoresVivos();
                     break;
                 case 5:
-                    System.out.println("opc5");
+                    muestraTodo();
                     break;
             }
 
@@ -99,37 +84,31 @@ public class Principal {
         json = consumoAPI.obtenerDatos(URL_BASE + "?search=" + nombreLibro.replace(" ", "+"));
         var datosBusqueda = convierteDatos.obtenerDatos(json, Datos.class);
 
+        // Buscamos el libro en los resultados de la búsqueda
         Optional<DatosLibros> libroBuscado = datosBusqueda.resultados().stream()
                 .filter(l -> l.titulo().toUpperCase().contains(nombreLibro.toUpperCase()))
                 .findFirst();
 
         if (libroBuscado.isPresent()) {
             DatosLibros libro = libroBuscado.get();
+            listaLibros.add(libro);
 
-            if (libroRepository.findByTitulo(libro.titulo()).isPresent()) {
-                System.out.println("El libro ya está registrado en la base de datos.");
-            } else {
-                Libro nuevoLibro = new Libro();
-                nuevoLibro.setTitulo(libro.titulo());
-                nuevoLibro.setIdiomas(libro.idiomas());
-                nuevoLibro.setNumeroDescargas(libro.numeroDescargas());
+            // Agregamos todos los autores del libro a la lista de autores
+            listaAutores.addAll(libro.autor());
 
-                List<Autor> autores = new ArrayList<>();
-                for (DatosAutor datosAutor : libro.autor()) {
-                    Autor autor = AutorRepository.findByNombre(datosAutor.nombre())
-                            .orElse(new Autor(datosAutor.nombre(), datosAutor.fechaNacimiento(), datosAutor.fechaFallecimiento()));
-                    autores.add(autor);
-                }
-                nuevoLibro.setAutores(autores);
+            // Mostramos solo la información del libro encontrado
+            System.out.println("Libro encontrado:");
+            System.out.println("ID: " + libro.ide());
+            System.out.println("Título: " + libro.titulo());
+            System.out.println("Autor(es): " + libro.autor().stream().map(DatosAutor::nombre).toList());
+            System.out.println("Lenguaje: " + libro.idiomas());
+            System.out.println("Número de descargas: " + libro.numeroDescargas());
+            System.out.println("------------------------");
 
-                libroRepository.save(nuevoLibro);
-                System.out.println("Libro y autor(es) almacenados exitosamente.");
-            }
         } else {
             System.out.println("Libro No encontrado");
         }
     }
-
 
 
     public void buscarAutor(){
@@ -211,6 +190,25 @@ public class Principal {
         } else {
             System.out.println("No se encontraron autores vivos en el año " + anio);
         }
+
     }
 
+    public void muestraTodo() {
+
+
+        if (listaLibros == null || listaLibros.isEmpty()) {
+            System.out.println("La lista de libros está vacía.");
+        } else {
+            System.out.println("*****Lista de libros buscados*****");
+            for (DatosLibros l : listaLibros) {
+                System.out.println("ID: " + l.ide());
+                System.out.println("Título: " + l.titulo());
+                System.out.println("Autor(es): " + l.autor().stream().map(DatosAutor::nombre).toList());
+                System.out.println("Lenguaje: " + l.idiomas());
+                System.out.println("Número de descargas: " + l.numeroDescargas());
+                System.out.println("------------------------");
+            }
+
+        }
+    }
 }
